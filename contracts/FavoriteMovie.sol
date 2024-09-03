@@ -38,7 +38,7 @@ contract FavoriteMovie {
     bool public contractPaused;
     uint256 private votingIndex;
 
-    mapping(address => bool) public userBanned;
+    mapping(address => bool) public blacklist;
     mapping(address => bool) public userLocked;
     mapping(address => mapping(uint256 => Vote)) public userVotes;
     mapping(address => mapping(uint256 => VotingPoll)) public votingPolls;
@@ -77,8 +77,15 @@ contract FavoriteMovie {
         _;
     }
 
+    modifier isContractOwner() {
+        if (msg.sender != contractOwner) {
+            revert("Only the owner can modify this contract");
+        }
+        _;
+    }
+
     modifier isNotBanned() {
-        if (userBanned[msg.sender]) {
+        if (blacklist[msg.sender]) {
             revert("Blacklisted user account, access denied");
         }
         _;
@@ -107,13 +114,6 @@ contract FavoriteMovie {
         _;
     }
 
-    modifier isContractOwner() {
-        if (msg.sender != contractOwner) {
-            revert("Only the owner can modify this contract");
-        }
-        _;
-    }
-
     modifier votingPollExist(address _userAccount, uint256 _votingIndex) {
         if (!votingPolls[_userAccount][_votingIndex].exists) {
             revert("Voting poll not found");
@@ -129,7 +129,7 @@ contract FavoriteMovie {
     }
 
     // Contract Owner Functions
-    function banUser(
+    function blockUser(
         address _userAccount
     )
         external
@@ -138,7 +138,7 @@ contract FavoriteMovie {
         isNotLocked
         isNotPaused
     {
-        userBanned[_userAccount] = true;
+        blacklist[_userAccount] = true;
     }
 
     function pauseContract() external isContractOwner isNotLocked {
@@ -151,14 +151,14 @@ contract FavoriteMovie {
         address _newOwner
     ) external isContractOwner isNotLocked isNotPaused {
         require(
-            !userBanned[_newOwner],
+            !blacklist[_newOwner],
             "Blacklisted user accounts cannot take ownership"
         );
 
         contractOwner = _newOwner;
     }
 
-    function unbanUser(
+    function unblockUser(
         address _userAccount
     )
         external
@@ -167,7 +167,7 @@ contract FavoriteMovie {
         isNotLocked
         isNotPaused
     {
-        userBanned[_userAccount] = false;
+        blacklist[_userAccount] = false;
     }
 
     function unpauseContract() external isContractOwner isNotLocked {

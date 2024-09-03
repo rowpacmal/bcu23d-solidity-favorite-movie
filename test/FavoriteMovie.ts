@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import hre, { ethers } from 'hardhat';
+import { ethers } from 'hardhat';
 
 describe('FavoriteMovie', () => {
   const deployContractFixture = async () => {
@@ -29,24 +29,22 @@ describe('FavoriteMovie', () => {
     describe('Transfer ownership', () => {
       it('Should update the contract owner to a new owner', async () => {
         const { contract, user1 } = await deployContractFixture();
+        const userAccount = await user1.getAddress();
 
-        const newUser = await user1.getAddress();
+        await contract.transferOwnership(userAccount);
 
-        await contract.transferOwnership(newUser);
-
-        expect(await contract.contractOwner()).to.equal(newUser);
+        expect(await contract.contractOwner()).to.equal(userAccount);
       });
 
       it('Should revert if new owner is on the blacklist', async () => {
         const { contract, user1 } = await deployContractFixture();
+        const userAccount = await user1.getAddress();
 
-        const newUser = await user1.getAddress();
+        await contract.blockUser(userAccount);
 
-        await contract.banUser(newUser);
-
-        await expect(contract.transferOwnership(newUser)).to.be.revertedWith(
-          'Blacklisted user accounts cannot take ownership'
-        );
+        await expect(
+          contract.transferOwnership(userAccount)
+        ).to.be.revertedWith('Blacklisted user accounts cannot take ownership');
       });
 
       it('Should revert if the caller is not the owner', async () => {
@@ -143,9 +141,97 @@ describe('FavoriteMovie', () => {
     });
 
     describe('Blacklist users', () => {
-      describe('Block user account', () => {});
+      describe('Block user account', () => {
+        it('Should add an user account to the blacklist', async () => {
+          const { contract, user1 } = await deployContractFixture();
+          const userAccount = await user1.getAddress();
 
-      describe('Unblock user account', () => {});
+          await contract.blockUser(userAccount);
+
+          expect(await contract.blacklist(userAccount)).to.be.true;
+        });
+
+        it('Should revert if the caller is not the owner', async () => {
+          const { contract, user1, user2 } = await deployContractFixture();
+
+          await expect(
+            contract.connect(user1).blockUser(await user2.getAddress())
+          ).to.be.revertedWith('Only the owner can modify this contract');
+        });
+
+        it('Should revert when trying to modify the owners status', async () => {
+          const { contract, owner } = await deployContractFixture();
+
+          await expect(
+            contract.blockUser(await owner.getAddress())
+          ).to.be.revertedWith('Owner status cannot be modified');
+        });
+
+        // it('Should revert if the caller is locked', async () => {});
+
+        it('Should revert if the contract is paused', async () => {
+          const { contract, user1 } = await deployContractFixture();
+
+          await contract.pauseContract();
+
+          await expect(
+            contract.blockUser(await user1.getAddress())
+          ).to.be.revertedWith('Contract is paused');
+        });
+      });
+
+      describe('Unblock user account', () => {
+        it('Should remove an user account from the blacklist', async () => {
+          const { contract, user1 } = await deployContractFixture();
+          const userAccount = await user1.getAddress();
+
+          await contract.blockUser(userAccount);
+
+          expect(await contract.blacklist(userAccount)).to.be.true;
+
+          await contract.unblockUser(userAccount);
+
+          expect(await contract.blacklist(userAccount)).to.be.false;
+        });
+
+        it('Should revert if the caller is not the owner', async () => {
+          const { contract, user1, user2 } = await deployContractFixture();
+          const userAccount = await user1.getAddress();
+
+          await contract.blockUser(userAccount);
+
+          expect(await contract.blacklist(userAccount)).to.be.true;
+
+          await expect(
+            contract.connect(user2).unblockUser(await user1.getAddress())
+          ).to.be.revertedWith('Only the owner can modify this contract');
+        });
+
+        it('Should revert when trying to modify the owners status', async () => {
+          const { contract, owner } = await deployContractFixture();
+
+          await expect(
+            contract.unblockUser(await owner.getAddress())
+          ).to.be.revertedWith('Owner status cannot be modified');
+        });
+
+        // it('Should revert if the caller is locked', async () => {});
+
+        it('Should revert if the contract is paused', async () => {
+          const { contract, user1 } = await deployContractFixture();
+          const userAccount = await user1.getAddress();
+
+          await contract.blockUser(userAccount);
+
+          expect(await contract.blacklist(userAccount)).to.be.true;
+
+          await contract.pauseContract();
+
+          await expect(contract.unblockUser(userAccount)).to.be.revertedWith(
+            'Contract is paused'
+          );
+        });
+      });
     });
   });
 });
