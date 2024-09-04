@@ -36,7 +36,7 @@ contract FavoriteMovie {
     // Contract State Variables
     address public contractOwner;
     bool public contractPaused;
-    uint256 private votingIndex;
+    uint256 public votingIndex;
 
     mapping(address => bool) public blacklist;
     mapping(address => bool) public userLocked;
