@@ -303,6 +303,24 @@ contract FavoriteMovie {
         _votingPoll.votingState = VotingState.Finished;
     }
 
+    function getMoviesFromVotingPoll(
+        address _userAccount,
+        uint256 _votingIndex
+    )
+        external
+        view
+        votingPollExist(_userAccount, _votingIndex)
+        returns (string[3] memory movieList)
+    {
+        for (uint256 i = 0; i < listLimit; ++i) {
+            movieList[i] = votingPolls[_userAccount][_votingIndex]
+                .favoriteMovies[i]
+                .title;
+        }
+
+        return movieList;
+    }
+
     function startVotingPoll(
         uint256 _votingIndex
     )

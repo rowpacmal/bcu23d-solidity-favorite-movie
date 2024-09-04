@@ -3,12 +3,28 @@ import { ethers } from 'hardhat';
 
 describe('FavoriteMovie', () => {
   const deployContractFixture = async () => {
+    enum VotingState {
+      NotStarted,
+      Ongoing,
+      Finished,
+    }
+
+    const { NotStarted, Ongoing, Finished } = VotingState;
     const [owner, user1, user2, user3] = await ethers.getSigners();
 
     const Contract = await ethers.getContractFactory('FavoriteMovie');
     const contract = await Contract.deploy();
 
-    return { contract, owner, user1, user2, user3 };
+    return {
+      contract,
+      owner,
+      NotStarted,
+      Ongoing,
+      Finished,
+      user1,
+      user2,
+      user3,
+    };
   };
 
   describe('Deployment', () => {
@@ -233,5 +249,58 @@ describe('FavoriteMovie', () => {
         });
       });
     });
+  });
+
+  describe('Owner Functions', () => {
+    describe('Voting Poll', () => {
+      describe('Add a voting poll', () => {
+        it('Should add a new voting poll with correct values', async () => {
+          const { contract, NotStarted, user1 } = await deployContractFixture();
+          const userAccount = await user1.getAddress();
+          const durationInHours = 2;
+          const index = 1;
+          const duration = durationInHours * 3600;
+          const winningMovie = '';
+          const exists = true;
+          const isTie = false;
+          const favoriteMovies: [string, string, string] = [
+            'movie1',
+            'movie2',
+            'movie3',
+          ];
+
+          const functionCall = await contract
+            .connect(user1)
+            .addVotingPoll(favoriteMovies, durationInHours);
+          const expectedCall = await functionCall.wait();
+          const block = await ethers.provider.getBlock(
+            expectedCall?.blockNumber || 0
+          );
+          const blockTimestamp = block?.timestamp;
+          const newVotingPoll = await contract.votingPolls(userAccount, 1);
+          const votingPollMovies = await contract.getMoviesFromVotingPoll(
+            userAccount,
+            1
+          );
+
+          expect(newVotingPoll.owner).to.equal(userAccount);
+          expect(newVotingPoll.votingIndex).to.equal(index);
+          expect(Number(newVotingPoll.votingDeadline) - duration).to.equal(
+            blockTimestamp
+          );
+          expect(newVotingPoll.winningMovie).to.equal(winningMovie);
+          expect(newVotingPoll.exists).to.equal(exists);
+          expect(newVotingPoll.isTie).to.equal(isTie);
+          expect(newVotingPoll.votingState).to.equal(NotStarted);
+          expect(JSON.stringify(votingPollMovies)).to.equal(
+            JSON.stringify(favoriteMovies)
+          );
+        });
+      });
+
+      describe('Start a voting Poll', () => {});
+    });
+
+    describe('Voting Process', () => {});
   });
 });
