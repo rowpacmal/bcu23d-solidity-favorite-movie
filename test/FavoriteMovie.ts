@@ -362,6 +362,36 @@ describe('FavoriteMovie', () => {
           ).to.equal(Ongoing);
         });
 
+        it('Should revert if the caller is blacklisted', async () => {
+          const { contract, user1 } = await deployContractFixture();
+
+          await contract
+            .connect(user1)
+            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2);
+
+          await contract.blockUser(user1.getAddress());
+
+          await expect(
+            contract.connect(user1).startVotingPoll(1)
+          ).to.be.revertedWith('Blacklisted user account, access denied');
+        });
+
+        // it('Should revert if the caller is locked', async () => {});
+
+        it('Should revert if the contract is paused', async () => {
+          const { contract, user1 } = await deployContractFixture();
+
+          await contract
+            .connect(user1)
+            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2);
+
+          await contract.pauseContract();
+
+          await expect(
+            contract.connect(user1).startVotingPoll(1)
+          ).to.be.revertedWith('Contract is paused');
+        });
+
         it('Should revert if the voting poll does not exists', async () => {
           const { contract, user1 } = await deployContractFixture();
 
@@ -370,7 +400,7 @@ describe('FavoriteMovie', () => {
           ).to.be.revertedWith('Voting poll not found');
         });
 
-        it('Should revert if the voting poll is not in the correct voting state', async () => {
+        it('Should revert if not in the correct voting state', async () => {
           const { contract, NotStarted, Ongoing, user1 } =
             await deployContractFixture();
 
@@ -425,6 +455,18 @@ describe('FavoriteMovie', () => {
       });
     });
 
-    describe('Voting Process', () => {});
+    describe('Voting Process', () => {
+      describe('Cast vote', () => {
+        it('Should add a vote and increase the vote count by 1 for the chosen movie', async () => {
+          const { contract, user1, user2 } = await deployContractFixture();
+
+          await contract
+            .connect(user1)
+            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2);
+        });
+      });
+
+      describe('Count votes', () => {});
+    });
   });
 });
