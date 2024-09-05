@@ -35,7 +35,7 @@ describe('FavoriteMovie', () => {
     });
 
     it('Should set the correct initial pause status', async () => {
-      const { contract, owner } = await deployContractFixture();
+      const { contract } = await deployContractFixture();
 
       expect(await contract.contractPaused()).to.be.false;
     });
@@ -541,8 +541,8 @@ describe('FavoriteMovie', () => {
           await contract
             .connect(user1)
             .addVotingPoll(['movie1', 'movie2', 'movie3'], 2 * 3600);
-
           await contract.connect(user1).startVotingPoll(1);
+
           await contract
             .connect(user2)
             .castVote(user1.getAddress(), 1, 'movie1');
