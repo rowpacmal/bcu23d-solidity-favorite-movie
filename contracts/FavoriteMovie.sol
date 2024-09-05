@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+// Author: @rowpacmal
+
 contract FavoriteMovie {
     // Contract Constant Variables
     uint256 private constant listLimit = 3;
