@@ -179,7 +179,7 @@ contract FavoriteMovie {
     // Contract User Functions
     function addVotingPoll(
         string[listLimit] memory _movieTitles,
-        uint256 _durationInHours
+        uint256 _duration
     ) external isNotBanned isNotLocked isNotPaused {
         ++votingIndex;
 
@@ -187,9 +187,7 @@ contract FavoriteMovie {
 
         _votingPoll.owner = msg.sender;
         _votingPoll.votingIndex = votingIndex;
-        _votingPoll.votingDeadline =
-            block.timestamp +
-            (_durationInHours * 1 hours);
+        _votingPoll.votingDeadline = block.timestamp + _duration;
         _votingPoll.winningMovie = "";
         _votingPoll.exists = true;
         _votingPoll.votingState = VotingState.NotStarted;
@@ -218,10 +216,6 @@ contract FavoriteMovie {
             _votingIndex
         ];
 
-        require(
-            msg.sender != _votingPoll.owner,
-            "Owners cannot vote on thier own polls"
-        );
         require(
             block.timestamp < _votingPoll.votingDeadline,
             "Duration has expired, no more votes can be cast"
@@ -310,15 +304,22 @@ contract FavoriteMovie {
         external
         view
         votingPollExist(_userAccount, _votingIndex)
-        returns (string[3] memory movieList)
+        returns (
+            string[listLimit] memory movieList,
+            uint256[listLimit] memory voteCountList
+        )
     {
         for (uint256 i = 0; i < listLimit; ++i) {
             movieList[i] = votingPolls[_userAccount][_votingIndex]
                 .favoriteMovies[i]
                 .title;
+
+            voteCountList[i] = votingPolls[_userAccount][_votingIndex]
+                .favoriteMovies[i]
+                .voteCount;
         }
 
-        return movieList;
+        return (movieList, voteCountList);
     }
 
     function startVotingPoll(

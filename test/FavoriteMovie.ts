@@ -257,9 +257,8 @@ describe('FavoriteMovie', () => {
         it('Should add a new voting poll with correct values', async () => {
           const { contract, NotStarted, user1 } = await deployContractFixture();
           const userAccount = await user1.getAddress();
-          const durationInHours = 2;
+          const durationInHours = 2 * 3600;
           const index = 1;
-          const duration = durationInHours * 3600;
           const winningMovie = '';
           const exists = true;
           const isTie = false;
@@ -285,14 +284,14 @@ describe('FavoriteMovie', () => {
 
           expect(newVotingPoll.owner).to.equal(userAccount);
           expect(newVotingPoll.votingIndex).to.equal(index);
-          expect(Number(newVotingPoll.votingDeadline) - duration).to.equal(
-            blockTimestamp
-          );
+          expect(
+            Number(newVotingPoll.votingDeadline) - durationInHours
+          ).to.equal(blockTimestamp);
           expect(newVotingPoll.winningMovie).to.equal(winningMovie);
           expect(newVotingPoll.exists).to.equal(exists);
           expect(newVotingPoll.isTie).to.equal(isTie);
           expect(newVotingPoll.votingState).to.equal(NotStarted);
-          expect(JSON.stringify(votingPollMovies)).to.equal(
+          expect(JSON.stringify(votingPollMovies[0])).to.equal(
             JSON.stringify(favoriteMovies)
           );
         });
@@ -304,13 +303,13 @@ describe('FavoriteMovie', () => {
 
           await contract
             .connect(user1)
-            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2);
+            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2 * 3600);
 
           expect(await contract.votingIndex()).to.equal(1);
 
           await contract
             .connect(user1)
-            .addVotingPoll(['movieA', 'movieB', 'movieC'], 2);
+            .addVotingPoll(['movieA', 'movieB', 'movieC'], 2 * 3600);
 
           expect(await contract.votingIndex()).to.equal(2);
         });
@@ -323,7 +322,7 @@ describe('FavoriteMovie', () => {
           await expect(
             contract
               .connect(user1)
-              .addVotingPoll(['movie1', 'movie2', 'movie3'], 2)
+              .addVotingPoll(['movie1', 'movie2', 'movie3'], 2 * 3600)
           ).to.be.revertedWith('Blacklisted user account, access denied');
         });
 
@@ -337,7 +336,7 @@ describe('FavoriteMovie', () => {
           await expect(
             contract
               .connect(user1)
-              .addVotingPoll(['movie1', 'movie2', 'movie3'], 2)
+              .addVotingPoll(['movie1', 'movie2', 'movie3'], 2 * 3600)
           ).to.be.revertedWith('Contract is paused');
         });
       });
@@ -349,7 +348,7 @@ describe('FavoriteMovie', () => {
 
           await contract
             .connect(user1)
-            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2);
+            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2 * 3600);
 
           expect(
             (await contract.votingPolls(user1.getAddress(), 1)).votingState
@@ -367,7 +366,7 @@ describe('FavoriteMovie', () => {
 
           await contract
             .connect(user1)
-            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2);
+            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2 * 3600);
 
           await contract.blockUser(user1.getAddress());
 
@@ -383,7 +382,7 @@ describe('FavoriteMovie', () => {
 
           await contract
             .connect(user1)
-            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2);
+            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2 * 3600);
 
           await contract.pauseContract();
 
@@ -406,7 +405,7 @@ describe('FavoriteMovie', () => {
 
           await contract
             .connect(user1)
-            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2);
+            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2 * 3600);
 
           expect(
             (await contract.votingPolls(user1.getAddress(), 1)).votingState
@@ -433,14 +432,14 @@ describe('FavoriteMovie', () => {
             'movie3',
           ];
 
-          await contract.connect(user1).addVotingPoll(favoriteMovies, 2);
+          await contract.connect(user1).addVotingPoll(favoriteMovies, 2 * 3600);
 
           const votingPollMovies = await contract.getMoviesFromVotingPoll(
             await user1.getAddress(),
             1
           );
 
-          expect(JSON.stringify(votingPollMovies)).to.equal(
+          expect(JSON.stringify(votingPollMovies[0])).to.equal(
             JSON.stringify(favoriteMovies)
           );
         });
@@ -459,10 +458,170 @@ describe('FavoriteMovie', () => {
       describe('Cast vote', () => {
         it('Should add a vote and increase the vote count by 1 for the chosen movie', async () => {
           const { contract, user1, user2 } = await deployContractFixture();
+          const userAccount = await user1.getAddress();
 
           await contract
             .connect(user1)
-            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2);
+            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2 * 3600);
+
+          await contract.connect(user1).startVotingPoll(1);
+
+          const voteCountBeforeVote = await contract.getMoviesFromVotingPoll(
+            userAccount,
+            1
+          );
+
+          expect(voteCountBeforeVote[1][0]).to.equal(0);
+          expect(voteCountBeforeVote[1][1]).to.equal(0);
+          expect(voteCountBeforeVote[1][2]).to.equal(0);
+
+          await contract.connect(user2).castVote(userAccount, 1, 'movie1');
+
+          const voteCountAfterVote = await contract.getMoviesFromVotingPoll(
+            userAccount,
+            1
+          );
+
+          expect(voteCountAfterVote[1][0]).to.equal(1);
+          expect(voteCountAfterVote[1][1]).to.equal(0);
+          expect(voteCountAfterVote[1][2]).to.equal(0);
+        });
+
+        it('Should set the correct voter state and vote timestamp', async () => {
+          const { contract, user1, user2 } = await deployContractFixture();
+          const userAccount = await user2.getAddress();
+
+          await contract
+            .connect(user1)
+            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2 * 3600);
+
+          await contract.connect(user1).startVotingPoll(1);
+
+          expect((await contract.userVotes(userAccount, 1)).hasVoted).to.be
+            .false;
+          expect((await contract.userVotes(userAccount, 1)).timestamp).to.equal(
+            0
+          );
+
+          const functionCall = await contract
+            .connect(user2)
+            .castVote(await user1.getAddress(), 1, 'movie1');
+          const expectedCall = await functionCall.wait();
+          const block = await ethers.provider.getBlock(
+            expectedCall?.blockNumber || 0
+          );
+          const blockTimestamp = block?.timestamp;
+
+          expect((await contract.userVotes(userAccount, 1)).hasVoted).to.be
+            .true;
+          expect((await contract.userVotes(userAccount, 1)).timestamp).to.equal(
+            blockTimestamp
+          );
+        });
+
+        it('Should revert if the time has exceeded the deadline', async () => {
+          const { contract, user1, user2 } = await deployContractFixture();
+
+          await contract
+            .connect(user1)
+            .addVotingPoll(['movie1', 'movie2', 'movie3'], 1);
+
+          await contract.connect(user1).startVotingPoll(1);
+
+          await expect(
+            contract.connect(user2).castVote(user1.getAddress(), 1, 'movie1')
+          ).to.be.revertedWith(
+            'Duration has expired, no more votes can be cast'
+          );
+        });
+
+        it('Should revert if the voter has already voted', async () => {
+          const { contract, user1, user2 } = await deployContractFixture();
+
+          await contract
+            .connect(user1)
+            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2 * 3600);
+
+          await contract.connect(user1).startVotingPoll(1);
+          await contract
+            .connect(user2)
+            .castVote(user1.getAddress(), 1, 'movie1');
+
+          await expect(
+            contract.connect(user2).castVote(user1.getAddress(), 1, 'movie2')
+          ).to.be.revertedWith('User account have already voted');
+        });
+
+        it('Should revert if the movie title is incorrect', async () => {
+          const { contract, user1, user2 } = await deployContractFixture();
+
+          await contract
+            .connect(user1)
+            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2 * 3600);
+
+          await contract.connect(user1).startVotingPoll(1);
+
+          await expect(
+            contract.connect(user2).castVote(user1.getAddress(), 1, 'movie4')
+          ).to.be.revertedWith('Movie title not found');
+        });
+
+        it('Should revert if the caller is blacklisted', async () => {
+          const { contract, user1, user2 } = await deployContractFixture();
+
+          await contract
+            .connect(user1)
+            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2 * 3600);
+
+          await contract.blockUser(user2.getAddress());
+
+          await expect(
+            contract.connect(user2).castVote(user1.getAddress(), 1, 'movie1')
+          ).to.be.revertedWith('Blacklisted user account, access denied');
+        });
+
+        // it('Should revert if the caller is locked', async () => {});
+
+        it('Should revert if the contract is paused', async () => {
+          const { contract, user1, user2 } = await deployContractFixture();
+
+          await contract
+            .connect(user1)
+            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2 * 3600);
+
+          await contract.pauseContract();
+
+          await expect(
+            contract.connect(user2).castVote(user1.getAddress(), 1, 'movie1')
+          ).to.be.revertedWith('Contract is paused');
+        });
+
+        it('Should revert if the voting poll does not exists', async () => {
+          const { contract, user1, user2 } = await deployContractFixture();
+
+          await expect(
+            contract.connect(user2).castVote(user1.getAddress(), 1, 'movie1')
+          ).to.be.revertedWith('Voting poll not found');
+        });
+
+        it('Should revert if not in the correct voting state', async () => {
+          const { contract, NotStarted, Ongoing, user1, user2 } =
+            await deployContractFixture();
+          const userAccount = user1.getAddress();
+
+          await contract
+            .connect(user1)
+            .addVotingPoll(['movie1', 'movie2', 'movie3'], 2 * 3600);
+
+          expect(
+            (await contract.votingPolls(userAccount, 1)).votingState
+          ).to.equal(NotStarted);
+
+          await expect(
+            contract.connect(user2).castVote(userAccount, 1, 'movie1')
+          )
+            .to.be.revertedWithCustomError(contract, 'CustomError_InvalidState')
+            .withArgs(NotStarted, Ongoing);
         });
       });
 
